@@ -15,29 +15,38 @@ class ISubject
 {
 public:
 	virtual ~ISubject() = default;
-	virtual void Attach(IObserver* observer) = 0;
-	virtual void Detach(IObserver* observer) = 0;
+	virtual void Attach(std::weak_ptr<IObserver> observer) = 0;
+	virtual void Detach(std::weak_ptr<IObserver> observer) = 0;
 	virtual void Notify() = 0;
 };
 
 class Subject : public ISubject
 {
 public:
-	void Attach(IObserver* observer)
+	void Attach(std::weak_ptr<IObserver> observer)
 	{
 		mObservers.push_back(observer);
 	}
 
-	void Detach(IObserver* observer)
+	void Detach(std::weak_ptr<IObserver> observer)
 	{
-		mObservers.remove(observer);
+		mObservers.erase(std::remove_if(mObservers.begin(), mObservers.end(),
+			[&](const std::weak_ptr<IObserver>& wptr)
+			{
+				return wptr.expired() || wptr.lock() == observer.lock();
+			}),
+			mObservers.end());
 	}
 
 	void Notify()
 	{
 		for (const auto& observer : mObservers)
 		{
-			observer->Update(mMessage);
+			auto obs = observer.lock();
+			if (obs)
+			{
+				obs->Update(mMessage);
+			}
 		}
 	}
 
@@ -53,16 +62,15 @@ public:
 		std::cout << std::endl;
 	}
 private:
-	std::list<IObserver*> mObservers;
+	std::list<std::weak_ptr<IObserver>> mObservers;
 	std::string mMessage;
 };
 
-class Observer : public IObserver
+class Observer : public IObserver, public std::enable_shared_from_this<Observer>
 {
 public:
-	Observer(Subject& subject) : mSubject(subject) 
+	Observer(Subject& subject) : mSubject(subject)
 	{
-		mSubject.Attach(this);
 		std::cout << std::format("Observer {} is created.", ++obsNumber);
 		std::cout << std::endl;
 		mNumber = obsNumber;
@@ -75,14 +83,14 @@ public:
 
 	void AddMeToList()
 	{
-		mSubject.Attach(this);
+		mSubject.Attach(weak_from_this());
 		std::cout << std::format("Observer {} is added to the list.", mNumber);
 		std::cout << std::endl;
 	}
 
 	void RemoveMeFromList()
 	{
-		mSubject.Detach(this);
+		mSubject.Detach(weak_from_this());
 		std::cout << std::format("Observer {} is removed from the list.", mNumber);
 		std::cout << std::endl;
 	}
@@ -104,14 +112,19 @@ int Observer::obsNumber = 0;
 int main()
 {
 	Subject subject;
-	Observer* obs1 = new Observer(subject);
-	Observer* obs2 = new Observer(subject);
-	Observer* obs3 = new Observer(subject);
+	std::shared_ptr<Observer> obs1(new Observer(subject));
+	std::shared_ptr<Observer> obs2(new Observer(subject));
+	std::shared_ptr<Observer> obs3(new Observer(subject));
+	obs1->AddMeToList();
+	obs2->AddMeToList();
+	obs3->AddMeToList();
 	subject.HowManyObservers();
 	subject.CreateEvent("The first event!!!");
 
-	Observer* obs4 = new Observer(subject);
-	Observer* obs5 = new Observer(subject);
+	std::shared_ptr<Observer> obs4(new Observer(subject));
+	std::shared_ptr<Observer> obs5(new Observer(subject));
+	obs4->AddMeToList();
+	obs5->AddMeToList();
 
 	obs1->RemoveMeFromList();
 	obs2->RemoveMeFromList();
@@ -126,12 +139,6 @@ int main()
 
 	subject.HowManyObservers();
 	subject.CreateEvent("The third event!!!");
-
-	delete obs1;
-	delete obs2;
-	delete obs3;
-	delete obs4;
-	delete obs5;
 
 	return 0;
 }
