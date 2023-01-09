@@ -78,17 +78,17 @@ public:
 
 	~Observer() override
 	{
-		RemoveMeFromList();
+		Unsubscribe();
 	}
 
-	void AddMeToList()
+	void Subscribe()
 	{
 		mSubject.Attach(weak_from_this());
 		std::cout << std::format("Observer {} is added to the list.", mNumber);
 		std::cout << std::endl;
 	}
 
-	void RemoveMeFromList()
+	void Unsubscribe()
 	{
 		mSubject.Detach(weak_from_this());
 		std::cout << std::format("Observer {} is removed from the list.", mNumber);
@@ -115,27 +115,27 @@ int main()
 	std::shared_ptr<Observer> obs1(new Observer(subject));
 	std::shared_ptr<Observer> obs2(new Observer(subject));
 	std::shared_ptr<Observer> obs3(new Observer(subject));
-	obs1->AddMeToList();
-	obs2->AddMeToList();
-	obs3->AddMeToList();
+	obs1->Subscribe();
+	obs2->Subscribe();
+	obs3->Subscribe();
 	subject.HowManyObservers();
 	subject.CreateEvent("The first event!!!");
 
 	std::shared_ptr<Observer> obs4(new Observer(subject));
 	std::shared_ptr<Observer> obs5(new Observer(subject));
-	obs4->AddMeToList();
-	obs5->AddMeToList();
+	obs4->Subscribe();
+	obs5->Subscribe();
 
-	obs1->RemoveMeFromList();
-	obs2->RemoveMeFromList();
-	obs3->RemoveMeFromList();
+	obs1->Unsubscribe();
+	obs2->Unsubscribe();
+	obs3->Unsubscribe();
 
 	subject.HowManyObservers();
 	subject.CreateEvent("The second event!!!");
 
-	obs1->AddMeToList();
-	obs2->AddMeToList();
-	obs3->AddMeToList();
+	obs1->Subscribe();
+	obs2->Subscribe();
+	obs3->Subscribe();
 
 	subject.HowManyObservers();
 	subject.CreateEvent("The third event!!!");
